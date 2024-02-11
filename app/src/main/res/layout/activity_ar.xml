@@ -49,6 +49,7 @@
         android:layout_above="@id/fab_sub_2"
         android:layout_alignParentEnd="true"
         android:visibility="visible"
+        app:srcCompat="@android:drawable/ic_menu_crop"
         app:elevation="10dp"/>
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -59,6 +60,7 @@
         android:layout_above="@id/fab_sub_3"
         android:layout_alignParentEnd="true"
         android:visibility="visible"
+        app:srcCompat="@android:drawable/ic_delete"
         app:elevation="10dp"/>
 
 </RelativeLayout>
