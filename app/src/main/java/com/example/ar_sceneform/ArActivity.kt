@@ -3,31 +3,29 @@ package com.example.ar_sceneform
 import android.app.Activity
 import android.app.ActivityManager
 import android.app.AlertDialog
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
-import android.view.LayoutInflater
 import android.view.MotionEvent
-import android.view.View
 import android.widget.Toast
-import android.widget.VideoView
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.ar.core.Anchor
 import com.google.ar.core.HitResult
 import com.google.ar.core.Plane
 import com.google.ar.sceneform.AnchorNode
+import com.google.ar.sceneform.rendering.ModelRenderable
 import com.google.ar.sceneform.rendering.ViewRenderable
 import com.google.ar.sceneform.ux.ArFragment
 import com.google.ar.sceneform.ux.TransformableNode
 import java.util.Objects
+import java.util.function.Consumer
+import java.util.function.Function
+
 
 class ArActivity : AppCompatActivity() {
     private val clickNo = 0
     private var arCam: ArFragment? = null
-    private var selectedView = 0;
-    lateinit var fabMain: FloatingActionButton
+    private var selectedView = R.layout.text_layout;
     lateinit var fabSub1: FloatingActionButton
     lateinit var fabSub2: FloatingActionButton
     lateinit var fabSub3: FloatingActionButton
@@ -38,38 +36,18 @@ class ArActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_ar)
 
-        fabMain = findViewById<FloatingActionButton>(R.id.fab_main)
         fabSub1 = findViewById<FloatingActionButton>(R.id.fab_sub_1)
         fabSub2 = findViewById<FloatingActionButton>(R.id.fab_sub_2)
         fabSub3 = findViewById<FloatingActionButton>(R.id.fab_sub_3)
         fabSub4 = findViewById<FloatingActionButton>(R.id.fab_sub_4)
 
-        fabMain.setOnClickListener {
-            if (!isFabMenuOpen) {
-                // Show sub FABs
-                showIn(fabSub1)
-                showIn(fabSub2)
-                showIn(fabSub3)
-                showIn(fabSub4)
-                isFabMenuOpen = true
-            } else {
-                // Hide sub FABs
-                showOut(fabSub1)
-                showOut(fabSub2)
-                showOut(fabSub3)
-                showOut(fabSub4)
-                isFabMenuOpen = false
-            }
-        }
-
         fabSub1.setOnClickListener {
             Toast.makeText(
                 this,
-                "AR object set to video",
+                "AR object set to basic tutorial",
                 Toast.LENGTH_SHORT
             ).show()
-            selectedView = R.layout.video_layout
-            //videoView.start()
+            selectedView = R.layout.text_layout
         }
 
         fabSub2.setOnClickListener {
@@ -78,132 +56,142 @@ class ArActivity : AppCompatActivity() {
                 "AR object set to web",
                 Toast.LENGTH_SHORT
             ).show()
-            selectedView = R.layout.web_layout
+            selectedView = R.layout.image_layout
         }
 
         fabSub3.setOnClickListener {
             Toast.makeText(
                 this,
-                "AR object set to chart",
+                "AR object set to model",
                 Toast.LENGTH_SHORT
             ).show()
-            selectedView = R.layout.chart_layout
+            selectedView = R.raw.tshirt
         }
 
         fabSub4.setOnClickListener {
             Toast.makeText(
                 this,
-                "AR object set to pdf",
+                "Clearing the AR plane",
                 Toast.LENGTH_SHORT
             ).show()
-            selectedView = R.layout.pdf_layout
+            this.detachAllAnchors(arCam!!)
         }
 
         if (checkSystemSupport(this)) {
-            //Connecting to the UI
-            // ArFragment is linked up with its respective id used in the activity_main.xml
             arCam = supportFragmentManager.findFragmentById(R.id.arFragment) as ArFragment?
             arCam!!.setOnTapArPlaneListener { hitResult: HitResult, plane: Plane?, motionEvent: MotionEvent? ->
-                //fixing the coordinates in the detected plane
-//                val inflater = LayoutInflater.from(this)
-//                val view = inflater.inflate(R.layout.selectedView, null)
                 val anchor = hitResult.createAnchor()
-                ViewRenderable.builder()
-                    .setView(this, selectedView) // set glb model
-                    .build()
-                    .thenAccept { viewRenderable ->
-                        // This lambda is invoked with the completed ViewRenderable
-                        addModel(anchor, viewRenderable)
-                        afterTapAction()
-                    }
-                    .exceptionally { throwable ->
-                        // This is where you handle any exceptions
-                        runOnUiThread {
-                            AlertDialog.Builder(this)
-                                .setMessage("Something went wrong: ${throwable.message}")
-                                .show()
+
+                if (selectedView != R.raw.tshirt) {
+                    ViewRenderable.builder()
+                        .setView(this, selectedView) // set glb model
+                        .build()
+                        .thenAccept { viewRenderable ->
+                            addModel(anchor, viewRenderable)
+                            afterTapAction()
                         }
-                        null // Return null to signify the exception was handled
-                    }
+                        .exceptionally { throwable ->
+                            runOnUiThread {
+                                AlertDialog.Builder(this)
+                                    .setMessage("Something went wrong: ${throwable.message}")
+                                    .show()
+                            }
+                            null
+                        }
+                } else {
+                    val anchor = hitResult.createAnchor()
+                    ModelRenderable.builder()
+                        .setSource(this, R.raw.tshirt) // set glb model
+                        .setIsFilamentGltf(true)
+                        .build()
+                        .thenAccept(Consumer<ModelRenderable> { modelRenderable: ModelRenderable? ->
+                            addModel(
+                                anchor,
+                                modelRenderable
+                            )
+                        })
+                        .exceptionally(Function<Throwable, Void?> { throwable: Throwable ->
+                            val builder = AlertDialog.Builder(this)
+                            builder.setMessage("Something is not right" + throwable.message).show()
+                            null
+                        })
+                }
             }
         }
     }
 
     //Function to render the model
     private fun addModel(anchor: Anchor, modelRenderable: ViewRenderable) {
-        // Creating a AnchorNode with a specific anchor
         val anchorNode = AnchorNode(anchor)
 
-        // attaching the anchorNode with the ArFragment
         anchorNode.parent = arCam!!.arSceneView.scene
 
-        // attaching the anchorNode with the TransformableNode
         val model = TransformableNode(arCam!!.transformationSystem)
         model.parent = anchorNode
-        // attaching the 3d model with the TransformableNode
-        // that is already attached with the node
         model.setRenderable(modelRenderable)
         model.select()
     }
 
-    // Function to show a sub FAB with animation
-    private fun showIn(fab: FloatingActionButton) {
-        fab.visibility = View.VISIBLE
-        fab.alpha = 0f
-        fab.translationY = fab.height.toFloat()
-        fab.animate()
-            .setDuration(200)
-            .translationY(0f)
-            .setListener(null)
-            .alpha(1f)
-            .start()
+    private fun addModel(anchor: Anchor, modelRenderable: ModelRenderable?) {
+        val anchorNode = AnchorNode(anchor)
+
+        anchorNode.parent = arCam!!.arSceneView.scene
+
+        val model = TransformableNode(arCam!!.transformationSystem)
+        model.parent = anchorNode
+        model.setRenderable(modelRenderable)
+        model.select()
     }
 
-    // Function to hide a sub FAB with animation
-    private fun showOut(fab: FloatingActionButton) {
-        fab.animate()
-            .setDuration(200)
-            .translationY(fab.height.toFloat())
-            .setListener(null)
-            .alpha(0f)
-            .withEndAction {
-                fab.visibility = View.INVISIBLE
-            }
-            .start()
-    }
-
-        private fun afterTapAction() {
-            when (selectedView) {
-                R.layout.video_layout -> {
-                    val videoView = findViewById<VideoView>(R.id.videoView)
-                    val videoPath = "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
-                    val uri = Uri.parse(videoPath)
-                    videoView.setVideoURI(uri)
-                    // videoView.start()
-                }
-                R.layout.pdf_layout -> {
-                    Toast.makeText(
-                        this,
-                        "PDF layout created",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-                R.layout.web_layout -> {
-                    Toast.makeText(
-                        this,
-                        "Web layout created",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-                R.layout.chart_layout -> {
-                    Toast.makeText(
-                        this,
-                        "Chart layout created",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
+    private fun detachAllAnchors(arFragment: ArFragment) {
+        val session = arFragment.arSceneView.session
+        val anchors = session?.allAnchors
+        if (anchors != null) {
+            for (anchor in anchors) {
+                anchor.detach()
             }
         }
+        // Optionally, you may want to clear any associated visual elements from your scene.
+        arFragment.arSceneView.scene.callOnHierarchy { node ->
+            if (node is AnchorNode && node.anchor != null) {
+                // This ensures that the visual part attached to the anchor is also removed.
+                node.setParent(null)
+            }
+        }
+    }
+
+    private fun afterTapAction() {
+        when (selectedView) {
+            R.layout.text_layout -> {
+                Toast.makeText(
+                    this,
+                    "Basic tutorial view created",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+            R.layout.image_layout -> {
+                Toast.makeText(
+                    this,
+                    "image layout created",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+            R.layout.web_layout -> {
+                Toast.makeText(
+                    this,
+                    "model layout created",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+            R.layout.gif_layout -> {
+                Toast.makeText(
+                    this,
+                    "Chart layout created",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
 
     companion object {
         fun checkSystemSupport(activity: Activity): Boolean {

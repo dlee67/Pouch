@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="280dp"
+    android:layout_height="280dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:layout_centerVertical="true"
+        android:layout_centerHorizontal="true">
+        <TextView
+            android:id="@+id/textDemo"
+            android:layout_width="280dp"
+            android:layout_height="280dp"
+            android:layout_margin="40dp"
+            android:text="Of course, there is nothing stopping you from having both the texts and an image"
+            android:background="@color/white">
+        </TextView>
+        <ImageView
+            android:id="@+id/my_image_view"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_launcher_foreground"
+            android:layout_gravity="center" />
+    </LinearLayout>
+
+</RelativeLayout>
